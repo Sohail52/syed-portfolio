@@ -93,7 +93,7 @@ MasyncAI is an AI-powered website generation platform that enables users to crea
     year: "2025",
   },
   {
-    slug: "valeo",
+    slug: "amazon-price-tracking-platform",
     name: "Valeo - Amazon Price Tracking Platform",
     description:
       "A web-based price tracking platform that monitors Amazon products and sends automated email alerts when prices drop.",
@@ -357,17 +357,17 @@ Every choice improves something and sacrifices something else.
 `,
   },
 
-{
-  id: "2",
+  {
+    id: "2",
     slug: "when-retries-make-things-worse-lessons-from-the-github-outage",
-      title: "When Retries Make Things Worse: Lessons from the GitHub Outage",
-        excerpt:
-  "A practical look at how a GitHub outage turned into a lesson on retry storms, circuit breakers, exponential backoff, and building fault-tolerant distributed systems.",
+    title: "When Retries Make Things Worse: Lessons from the GitHub Outage",
+    excerpt:
+      "A practical look at how a GitHub outage turned into a lesson on retry storms, circuit breakers, exponential backoff, and building fault-tolerant distributed systems.",
     date: "Jun 2026",
-      readTime: "6 min",
-        tags: ["distributed systems", "system design", "fault tolerance", "retry storms", "circuit breaker"],
-          featured: true,
-            content: `
+    readTime: "6 min",
+    tags: ["distributed systems", "system design", "fault tolerance", "retry storms", "circuit breaker"],
+    featured: true,
+    content: `
 Distributed systems often fail in unexpected ways.
 
 Sometimes it's a database outage. Sometimes it's a networking issue. Sometimes a dependency becomes unavailable.
@@ -575,7 +575,7 @@ In distributed systems, the challenge isn't just handling failures.
 
 It's making sure your recovery strategy doesn't become the next failure.
 `
-}
+  }
 ];
 
 
