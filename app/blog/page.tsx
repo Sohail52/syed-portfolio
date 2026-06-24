@@ -51,9 +51,7 @@ export default function BlogPage() {
                 Blogs
               </h1>
               <p className="text-lg text-muted-foreground max-w-2xl">
-                Articles and insights on web development, design systems,
-                performance optimization, and modern web technologies, sharing
-                what I&apos;ve learned to help developers improve their skills.
+                Not a regular blog. Just ideas, systems, and technical concepts that made me pause and dig deeper.
               </p>
               <SearchWidget />
             </div>
