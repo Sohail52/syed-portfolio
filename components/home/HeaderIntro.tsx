@@ -57,7 +57,7 @@ export default function HeaderIntro() {
             <Tooltip>
               <TooltipTrigger asChild>
                 <Link
-                  href="https://drive.google.com/file/d/1ZYPGKVmMYpBCTRxHBTyw0bZPTXw_NKKU/view?usp=sharing"
+                  href="https://drive.google.com/file/d/1nEX99OeR8La0pliXGKQGkkXFakUETL-X/view?usp=sharing"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex-1 px-4 py-2 bg-foreground rounded-lg hover:border-muted-foreground/50 text-sm text-background transition-all duration-300 hover:shadow-sm flex items-center justify-center gap-2"
