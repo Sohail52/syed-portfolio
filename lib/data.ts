@@ -599,7 +599,7 @@ You have a JavaScript object:
 
 \`\`\`javascript
 const user = {
-  name: "Sohail",
+  name: "Elias Void",
   age: 22
 }
 \`\`\`
