@@ -576,6 +576,557 @@ In distributed systems, the challenge isn't just handling failures.
 It's making sure your recovery strategy doesn't become the next failure.
 `
   }
+  , {
+    id: "3",
+    slug: "json-is-not-what-you-think",
+    title: "JSON Is Not What You Think",
+    excerpt:
+      "I thought JSON was just a simple way to turn JavaScript objects into strings. Then I started digging deeper and found out how numbers, undefined, Dates, object references, and even serialization itself can behave differently than expected.",
+    date: "Aug 2026",
+    readTime: "8 min",
+    tags: [
+      "javascript",
+      "json",
+      "web development",
+      "data serialization",
+      "programming concepts"
+    ],
+    featured: false,
+    content: `
+I always thought JSON was pretty straightforward.
+
+You have a JavaScript object:
+
+\`\`\`javascript
+const user = {
+  name: "Sohail",
+  age: 22
+}
+\`\`\`
+
+Then:
+
+\`\`\`javascript
+JSON.stringify(user)
+\`\`\`
+
+gives you JSON.
+
+And when you need it back:
+
+\`\`\`javascript
+JSON.parse(json)
+\`\`\`
+
+Done.
+
+At least, that's how I used to think about it.
+
+Then I started looking into what actually happens when JavaScript objects cross a JSON boundary, and I realized something pretty important:
+
+**JSON isn't a copy of your JavaScript object.**
+
+It's a completely different data format.
+
+And once I understood that, a lot of weird JSON behavior suddenly started making sense.
+
+## The First Thing That Caught Me: Numbers
+
+I came across this:
+
+\`\`\`javascript
+const id = 9007199254740993
+
+console.log(id)
+// 9007199254740992
+\`\`\`
+
+Wait, what?
+
+I literally wrote \`...993\`, but JavaScript gives me \`...992\`.
+
+The important part is that **JSON isn't even involved yet**.
+
+JavaScript's \`Number\` type can't represent every integer once you go beyond:
+
+\`\`\`javascript
+Number.MAX_SAFE_INTEGER
+// 9007199254740991
+\`\`\`
+
+So around this range, you start getting gaps:
+
+\`\`\`text
+9007199254740992  ✓
+9007199254740993  ✗
+9007199254740994  ✓
+9007199254740995  ✗
+\`\`\`
+
+There are gaps.
+
+That immediately made me think about IDs.
+
+Imagine a backend sends:
+
+\`\`\`json
+{
+  "id": 9007199254740993
+}
+\`\`\`
+
+The JSON text contains the correct number.
+
+But when JavaScript parses it:
+
+\`\`\`javascript
+JSON.parse(...)
+\`\`\`
+
+it turns that number into a JavaScript \`Number\`, and the precision can already be gone.
+
+That's why large IDs are often better represented as:
+
+\`\`\`json
+{
+  "id": "9007199254740993"
+}
+\`\`\`
+
+If I need arithmetic, I can turn that string into a \`BigInt\`.
+
+So the first lesson was:
+
+**Don't assume that because JSON says "number", JavaScript can safely represent every number.**
+
+And that led me to another question:
+
+If JSON has fewer rules than JavaScript, what happens to values that JSON doesn't even understand?
+
+## Then I Ran Into \`undefined\`
+
+JavaScript has:
+
+\`\`\`javascript
+{
+  nickname: undefined
+}
+\`\`\`
+
+But JSON doesn't have an \`undefined\` value.
+
+So:
+
+\`\`\`javascript
+JSON.stringify({
+  nickname: undefined
+})
+\`\`\`
+
+becomes:
+
+\`\`\`json
+{}
+\`\`\`
+
+The property just disappears.
+
+At first, this doesn't seem like a big deal.
+
+But think about an update API.
+
+Maybe:
+
+\`\`\`json
+{}
+\`\`\`
+
+means:
+
+> Don't change the nickname.
+
+And:
+
+\`\`\`json
+{
+  "nickname": null
+}
+\`\`\`
+
+means:
+
+> Clear the nickname.
+
+Now:
+
+\`\`\`javascript
+{
+  nickname: undefined
+}
+\`\`\`
+
+also becomes:
+
+\`\`\`json
+{}
+\`\`\`
+
+So the receiver can't tell what you originally meant.
+
+That's when I started seeing the bigger pattern.
+
+**JSON isn't preserving JavaScript semantics. It's converting them into whatever JSON can represent.**
+
+And Dates make this even more obvious.
+
+## A Date Isn't a Date Anymore
+
+Take:
+
+\`\`\`javascript
+const createdAt = new Date("2026-07-21T12:00:00Z")
+\`\`\`
+
+If I stringify it:
+
+\`\`\`javascript
+JSON.stringify({ createdAt })
+\`\`\`
+
+I get:
+
+\`\`\`json
+{
+  "createdAt": "2026-07-21T12:00:00.000Z"
+}
+\`\`\`
+
+Looks fine.
+
+But look at it after parsing:
+
+\`\`\`javascript
+const copy = JSON.parse(json)
+
+copy.createdAt instanceof Date
+// false
+\`\`\`
+
+It's just a string now.
+
+JSON doesn't have a \`Date\` type.
+
+And this is where I realized something important:
+
+**The data survived, but the type didn't.**
+
+The same thing happens with other JavaScript values.
+
+For example:
+
+\`\`\`javascript
+NaN
+Infinity
+-Infinity
+\`\`\`
+
+all become:
+
+\`\`\`json
+null
+\`\`\`
+
+And things like:
+
+\`\`\`javascript
+Map
+Set
+RegExp
+\`\`\`
+
+can lose their useful state and end up as plain objects.
+
+So now we have another problem.
+
+Not only can JSON change values, it can also **erase the type that gave those values meaning**.
+
+## Then I Found Out \`JSON.stringify()\` Can Actually Run Code
+
+This one surprised me.
+
+I used to imagine:
+
+\`\`\`text
+object
+  ↓
+JSON.stringify()
+  ↓
+string
+\`\`\`
+
+as a simple conversion.
+
+But objects can define \`toJSON()\`.
+
+For example:
+
+\`\`\`javascript
+const user = {
+  name: "Alice",
+  password: "secret",
+
+  toJSON() {
+    return {
+      name: this.name
+    }
+  }
+}
+\`\`\`
+
+Now:
+
+\`\`\`javascript
+JSON.stringify(user)
+\`\`\`
+
+produces:
+
+\`\`\`json
+{"name":"Alice"}
+\`\`\`
+
+The password is gone.
+
+Why?
+
+Because \`JSON.stringify()\` called:
+
+\`\`\`javascript
+user.toJSON()
+\`\`\`
+
+before serializing it.
+
+Getters can do the same kind of thing.
+
+\`\`\`javascript
+const invoice = {
+  subtotal: 100,
+
+  get total() {
+    console.log("calculating...")
+    return this.subtotal * 1.2
+  }
+}
+\`\`\`
+
+When JSON serialization accesses \`total\`, the getter runs.
+
+So serialization isn't always this passive operation I thought it was.
+
+**Serializing an object can execute application code.**
+
+## Then There Was Object Identity
+
+This one is subtle.
+
+Suppose:
+
+\`\`\`javascript
+const shared = {
+  name: "Alice"
+}
+
+const original = {
+  owner: shared,
+  reviewer: shared
+}
+\`\`\`
+
+Both properties point to the exact same object:
+
+\`\`\`javascript
+original.owner === original.reviewer
+// true
+\`\`\`
+
+Now do the usual JSON round trip:
+
+\`\`\`javascript
+const copy = JSON.parse(JSON.stringify(original))
+
+console.log(copy.owner === copy.reviewer)
+// false
+\`\`\`
+
+The data looks the same, but the relationship is gone.
+
+JSON stored:
+
+\`\`\`json
+{
+  "owner": {
+    "name": "Alice"
+  },
+  "reviewer": {
+    "name": "Alice"
+  }
+}
+\`\`\`
+
+It doesn't know that both originally pointed to the same object.
+
+And if the object points back to itself:
+
+\`\`\`javascript
+const obj = {}
+obj.self = obj
+\`\`\`
+
+then:
+
+\`\`\`javascript
+JSON.stringify(obj)
+\`\`\`
+
+just throws.
+
+JSON can represent nested data.
+
+It can't represent an arbitrary JavaScript object graph.
+
+## So What About Cloning?
+
+This is where all of this finally connected for me.
+
+I've seen this pattern everywhere:
+
+\`\`\`javascript
+const copy = JSON.parse(JSON.stringify(original))
+\`\`\`
+
+It's often described as a quick way to deep clone an object.
+
+But after seeing all these examples, I wouldn't call it a general-purpose deep clone anymore.
+
+Because look at everything we've already lost:
+
+\`\`\`text
+large Number       → precision can be lost
+undefined          → disappears
+Date               → string
+NaN                → null
+Map / Set          → type/state can disappear
+class instance     → plain object
+shared reference   → separate objects
+circular reference → error
+\`\`\`
+
+That's not really "copying the object".
+
+It's:
+
+\`\`\`text
+JavaScript object
+      ↓
+JSON representation
+      ↓
+new JavaScript object
+\`\`\`
+
+And those are not necessarily the same thing.
+
+## This Also Changed How I Think About APIs
+
+This is probably the most useful part for me.
+
+Instead of thinking:
+
+\`\`\`text
+Backend object
+      ↓
+JSON.stringify()
+      ↓
+Frontend gets the same thing
+\`\`\`
+
+I now think:
+
+\`\`\`text
+Backend data
+      ↓
+Define what should cross the boundary
+      ↓
+JSON representation
+      ↓
+Parse
+      ↓
+Validate
+      ↓
+Convert into application types
+\`\`\`
+
+For example, instead of casually sending:
+
+\`\`\`javascript
+{
+  id: someBigInt,
+  createdAt: someDate,
+  roles: someSet
+}
+\`\`\`
+
+I'd define the API shape explicitly:
+
+\`\`\`json
+{
+  "id": "9007199254740993",
+  "createdAt": "2026-07-21T12:00:00.000Z",
+  "roles": ["admin", "developer"]
+}
+\`\`\`
+
+Now everyone knows what they're dealing with.
+
+The ID is a string.
+
+The date is an ISO timestamp.
+
+The roles are an array.
+
+No guessing.
+
+## The Thing I Actually Learned
+
+The interesting part of all this wasn't really JSON.
+
+It was the idea of **boundaries**.
+
+Whenever data moves from one system to another, something has to translate it.
+
+And that translation can lose information.
+
+JSON just makes this really easy to overlook because it looks so familiar.
+
+So now when I see:
+
+\`\`\`javascript
+JSON.stringify(data)
+\`\`\`
+
+I don't automatically think:
+
+> "I'm converting my object to a string."
+
+I think:
+
+> "I'm converting my application's data into JSON's data model."
+
+That small difference in thinking explains a lot of the weird behavior we see with JSON.
+
+And honestly, that's probably the biggest takeaway I got from digging into this.
+`
+  }
 ];
 
 
